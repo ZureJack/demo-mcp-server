@@ -1,0 +1,2 @@
+# tools/resources — MCP Resources
+# 依赖：无（仅使用 Python 标准库）

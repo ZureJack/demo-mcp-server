@@ -1,0 +1,2 @@
+# tools/install_deps — 依赖安装能力
+# 依赖：无（仅使用 Python 标准库）

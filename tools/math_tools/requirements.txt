@@ -1,0 +1,2 @@
+# tools/math_tools — 数学计算能力
+# 依赖：无（仅使用 Python 标准库）

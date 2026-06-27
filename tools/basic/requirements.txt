@@ -1,0 +1,2 @@
+# tools/basic — 基础能力
+# 依赖：无（仅使用 Python 标准库）

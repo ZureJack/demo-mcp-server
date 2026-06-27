@@ -3,148 +3,80 @@
 一个使用 **Python** 编写的 [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) Server，
 可直接接入 [Cline](https://github.com/cline/cline) / Claude Desktop 等 MCP 客户端。
 
-设计要点
---------
+## 设计要点
 
-- **始终在虚拟环境中运行**：通过 `run.sh` 启动，脚本会自动创建 `.venv`、按需安装依赖，并用 venv 内的 Python 拉起 server。Cline 配置只需一行 `command`。
-- **主框架与能力解耦**：`server.py` 只负责创建 FastMCP 实例、注册能力、启动事件循环；所有业务工具 / 资源 / 提示都位于独立的 `tools/` 包，新增能力**不需要改动任何现有文件**。
-- **能力自注册**：每个能力子包通过 `__register__.py` 调用 `lib.registry.register_module()` 完成自我注册，无需手动维护模块清单。
-
----
-
-## 项目结构
-
-```
-mcp/
-├── server.py              # 主框架：装配并启动 FastMCP，不含业务逻辑
-├── tools/                 # 能力包：每个子包负责一类业务能力
-│   ├── __init__.py        # 自动发现 + register_all()
-│   ├── basic/             # echo, system_info
-│   │   ├── __init__.py
-│   │   └── __register__.py
-│   ├── time_tools/        # get_current_time
-│   │   ├── __init__.py
-│   │   └── __register__.py
-│   ├── math_tools/        # add, calculate
-│   │   ├── __init__.py
-│   │   └── __register__.py
-│   ├── file_tools/        # read_text_file
-│   │   ├── __init__.py
-│   │   └── __register__.py
-│   ├── resources/         # greeting://{name}
-│   │   ├── __init__.py
-│   │   └── __register__.py
-│   └── prompts/           # summarize
-│       ├── __init__.py
-│       └── __register__.py
-├── lib/                   # 工具库
-│   ├── __init__.py
-│   └── registry.py        # register_module() — 能力自注册接口
-├── run.sh                 # 虚拟环境启动脚本（Cline 调用入口）
-├── pyproject.toml
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
-
----
-
-## 已内置能力
-
-### Tools（工具）
-
-| 名称 | 子包 | 说明 |
-| --- | --- | --- |
-| `echo(text)` | `tools.basic` | 回显文本，连通性测试 |
-| `system_info()` | `tools.basic` | 返回平台、Python、是否在 venv 等 |
-| `get_current_time(tz?)` | `tools.time_tools` | 获取当前时间，支持 IANA 时区 |
-| `add(a, b)` | `tools.math_tools` | 两数相加 |
-| `calculate(expression)` | `tools.math_tools` | 安全地对算术表达式求值 |
-| `read_text_file(path, max_bytes?)` | `tools.file_tools` | 读取本地文本文件 |
-
-### Resources（资源）
-
-- `greeting://{name}` — `tools.resources`
-
-### Prompts（提示模板）
-
-- `summarize(text)` — `tools.prompts`
-
----
+- **始终在虚拟环境中运行**：`run.sh` 自动创建 `.venv`、安装依赖，Cline 配置只需一行 `command`。
+- **主框架与能力解耦**：`server.py` 只负责启动与装配；所有业务工具 / 资源 / 提示位于 `tools/` 包内，新增能力无需改动任何现有文件。
+- **能力自注册**：每个能力子包通过 `__register__.py` 自我注册，无需手动维护模块清单。
+- **按需依赖**：每个能力子包维护自己的 `requirements.txt`，不使用的模块无需安装其依赖。
 
 ## 环境要求
 
 - Python **3.10+**
-- Linux / macOS（`run.sh` 为 Bash 脚本；Windows 请见下文）
-
----
+- Linux / macOS（`run.sh` 为 Bash 脚本；Windows 见下方说明）
 
 ## 快速开始
 
+### 方式一：run.sh（推荐）
+
 ```bash
-cd /home/loto/work/mcp
+git clone git@github.com:ZureJack/demo-mcp-server.git
+cd demo-mcp-server
 ./run.sh
 ```
 
-首次运行 `run.sh` 会自动：
+首次运行自动创建 `.venv/` 并安装核心依赖；再次启动直接进入 server。
 
-1. 在项目目录下创建 `.venv/`；
-2. 安装 `requirements.txt` 中的依赖；
-3. 用 `.venv/bin/python` 启动 `server.py`。
+### 方式二：pip install
 
-之后再次启动会跳过 1、2 直接进入第 3 步。
+```bash
+pip install .
+demo-mcp-server     # 启动 server
+```
 
-> 服务通过 stdio 传输 JSON-RPC，**stdout 不会有可读输出**，日志走 stderr。`Ctrl+C` 退出。
+安装后可以直接在任意目录通过 `demo-mcp-server` 命令启动（无需 `run.sh`）。
 
-可视化调试（推荐）：
+### 可视化调试
 
 ```bash
 source .venv/bin/activate
 mcp dev server.py
 ```
 
-会弹出一个浏览器面板，可查看与手动调用 tools / resources / prompts。
+## 内置能力
 
----
+| 模块 | 说明 | 文档 |
+|------|------|------|
+| `basic` | 回显、系统信息 | [README](tools/basic/README.md) |
+| `math_tools` | 算术运算 | [README](tools/math_tools/README.md) |
+| `time_tools` | 当前时间（支持时区） | [README](tools/time_tools/README.md) |
+| `file_tools` | 读取文本文件 | [README](tools/file_tools/README.md) |
+| `resources` | MCP Resources（greeting） | [README](tools/resources/README.md) |
+| `prompts` | MCP Prompts（summarize） | [README](tools/prompts/README.md) |
+| `install_deps` | 按需安装模块依赖 | [README](tools/install_deps/README.md) |
 
 ## 在 Cline 中接入
 
-Cline 的配置文件位置：
-
-- VS Code (Linux)：`~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
-- VS Code (macOS)：`~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
-- VS Code (Windows)：`%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
-
-或直接在 Cline 侧边栏 **MCP Servers → Configure MCP Servers** 打开。
-
-将本 server 加入 `mcpServers`（**只需一行 `command`**，无需手写解释器路径）：
+在 `cline_mcp_settings.json` 中加入：
 
 ```jsonc
 {
   "mcpServers": {
     "demo-mcp-server": {
-      "command": "/home/loto/work/mcp/run.sh",
-      "args": [],
-      "env": {},
-      "disabled": false,
-      "autoApprove": []
+      "command": "/home/loto/work/mcp/run.sh"
     }
   }
 }
 ```
 
-`run.sh` 会保证子进程始终运行在项目自己的 `.venv` 中，免去手填路径与版本错位问题。
-
-### 在 Cline 中验证
-
-> 调用 demo-mcp-server 的 echo 工具，参数 `text="hello mcp"`
-
-Cline 会请求执行该工具，确认后返回 `hello mcp`。
+配置文件位置：
+- VS Code (Linux)：`~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- VS Code (macOS)：`~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- VS Code (Windows)：`%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`
 
 ### Windows 用户
 
-`run.sh` 是 Bash 脚本，在 Windows 上推荐通过 **WSL** 或 **Git Bash** 调用：
-
+通过 WSL 调用：
 ```jsonc
 {
   "mcpServers": {
@@ -156,38 +88,30 @@ Cline 会请求执行该工具，确认后返回 `hello mcp`。
 }
 ```
 
-或直接指向虚拟环境内的 `python.exe`：
+## 添加新能力
 
-```jsonc
-{
-  "mcpServers": {
-    "demo-mcp-server": {
-      "command": "C:\\path\\to\\mcp\\.venv\\Scripts\\python.exe",
-      "args": ["C:\\path\\to\\mcp\\server.py"]
-    }
-  }
-}
-```
-
----
-
-## 添加你自己的能力
-
-得益于"主框架 / 能力"分离的设计，新增能力只需在 `tools/` 下新建一个子包，
+得益于"主框架/能力"分离的设计，新增能力只需在 `tools/` 下新建一个子包，
 **无需修改任何现有文件**。
 
-### 1. 新建 `tools/weather/` 子包
+### 子包结构
+
+一个能力子包由 3 个文件组成：
 
 ```
-tools/weather/
-├── __init__.py       # register(mcp) + 工具实现
-└── __register__.py   # 自注册入口
+tools/weather/               # 子包目录名即为能力名
+├── __init__.py              # 能力实现：注册工具/资源/提示
+├── __register__.py          # 自注册入口（一行代码）
+└── requirements.txt         # （可选）本模块的外部依赖
 ```
 
-`tools/weather/__init__.py`：
+### 各文件说明
+
+#### `__init__.py`
+
+能力实现文件。必须暴露一个 `register(mcp)` 函数，在此函数内通过装饰器注册工具/资源/提示。
 
 ```python
-"""天气查询能力。"""
+"""天气查询能力。"""          # 模块文档字符串
 
 from __future__ import annotations
 
@@ -205,7 +129,14 @@ def register(mcp: "FastMCP") -> None:
         return {"city": city, "temp": 25}
 ```
 
-`tools/weather/__register__.py`：
+约定：
+- 不要在模块顶层引用全局 `mcp`，保证模块与主框架解耦，便于独立导入和单元测试。
+- 可以同时注册多个 tool/resource/prompt。
+- 工具的参数类型注解会被 MCP SDK 自动转为 JSON Schema，客户端（如 Cline）会据此生成参数填写界面。
+
+#### `__register__.py`
+
+自注册入口。`register_all()` 会通过子进程执行此文件，将模块名写入 `.registry.json`。
 
 ```python
 from lib.registry import register_module
@@ -213,45 +144,63 @@ from lib.registry import register_module
 register_module("weather")
 ```
 
-### 2. 保存，让 Cline 重启该 MCP server
+仅此两行，不可省略。这个步骤让主框架知道存在这个能力模块。
 
-即可看到 `fetch_weather` 工具——**`server.py` 和 `tools/__init__.py` 都不动**。
+#### `requirements.txt`（可选）
 
----
+该模块的外部 Python 依赖，每行一个包名（标准 pip 格式）：
 
-**自动注册原理**：`register_all()` 会扫描 `tools/` 下所有子包，
-通过子进程运行每个子包的 `__register__.py`，各文件调用 `register_module("xxx")`
-将自身写入 `.registry.json`。完成扫描后再统一导入并挂载所有已注册的能力。
+```txt
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+```
 
-约定：每个能力子包必须实现 `register(mcp)`，且不要在模块顶层引用全局 `mcp`，
-便于单元测试与隔离。
+如果模块只使用 Python 标准库，此文件可以留空（或写注释说明无依赖）。
 
-> 命名说明：包目录 `tools/` 指"业务能力模块集合"，内部既可以注册 MCP tools，
-> 也可以注册 resources / prompts。
+安装方式：
+```bash
+python tools/install_deps/install-deps.py           # 安装所有模块的依赖
+python tools/install_deps/install-deps.py weather   # 只安装指定模块的依赖
+```
 
----
+AI agent 也可以直接调用 `install_deps_for_modules` 工具在线安装。
+
+### 注册与生效
+
+保存文件后，Cline 会自动发现变更并重启 MCP server。重启后即可看到新的工具——**`server.py` 和 `tools/__init__.py` 都不需要修改**。
+
+如果想手动刷新注册信息（一般情况下不需要），可以在项目根目录执行：
+
+```bash
+PYTHONPATH=. python -c "
+import tools
+from mcp.server.fastmcp import FastMCP
+mcp = FastMCP('test')
+tools.register_all(mcp)
+print('已注册模块:', tools.TOOL_MODULES)
+"
+```
 
 ## 常见问题
 
 **Q1. `./run.sh: Permission denied`**
-- 给可执行权限：`chmod +x run.sh`。
+```bash
+chmod +x run.sh
+```
 
 **Q2. `ModuleNotFoundError: No module named 'mcp'`**
-- 说明虚拟环境损坏。删除 `.venv` 重新运行 `./run.sh` 即可。
+删除 `.venv` 重新运行 `./run.sh` 即可。
 
 **Q3. server 启动后没有任何输出**
-- 这是预期行为：stdio 传输下，stdout 只用于 JSON-RPC，日志在 stderr。
+正常行为：stdio 传输下 stdout 只用于 JSON-RPC，日志在 stderr。
 
-**Q4. 想强制使用别的宿主 Python 创建 venv**
-- 设置环境变量：`PYTHON_BIN=/usr/bin/python3.12 ./run.sh`。
-
-**Q5. server 启动时 stderr 出现"当前未在虚拟环境中运行"警告**
-- 说明你直接用了系统 Python 调用 `python server.py`。改用 `./run.sh` 即可。
-
----
+**Q4. 想强制使用别的 Python 版本创建 venv**
+```bash
+PYTHON_BIN=/usr/bin/python3.12 ./run.sh
+```
 
 ## 参考
 
-- MCP 规范：<https://modelcontextprotocol.io/>
-- Python SDK：<https://github.com/modelcontextprotocol/python-sdk>
-- Cline 文档：<https://docs.cline.bot/mcp-servers/configuring-mcp-servers>
+- [MCP 规范](https://modelcontextprotocol.io/)
+- [Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- [Cline 文档](https://docs.cline.bot/mcp-servers/configuring-mcp-servers)
