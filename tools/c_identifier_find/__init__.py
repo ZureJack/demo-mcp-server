@@ -35,23 +35,10 @@ def _format_results(data: list[dict], query: str) -> str:
 
 
 def register(mcp: "FastMCP") -> None:
-    config = _load_config()
-    server_url = config["server_url"].rstrip("/")
-
     @mcp.tool()
     def find_c_identifier(name: str, fuzzy: bool = False) -> str:
-        """查找 C 标识符的定义与声明位置。
-
-        前提：需要先启动 c_identifier_find Server
-        （python c_identifier_find_server.py /path/to/config.json）
-
-        Args:
-            name: 标识符名称
-            fuzzy: 是否模糊匹配（默认精确匹配）
-
-        Returns:
-            格式化的查询结果
-        """
+        config = _load_config()
+        server_url = config["server_url"].rstrip("/")
         from .client import call_find
 
         result = call_find(server_url, name, fuzzy)
@@ -62,7 +49,8 @@ def register(mcp: "FastMCP") -> None:
 
     @mcp.tool()
     def c_index_status() -> str:
-        """查看 c_identifier_find Server 的索引状态。"""
+        config = _load_config()
+        server_url = config["server_url"].rstrip("/")
         from .client import call_status
 
         result = call_status(server_url)

@@ -1,8 +1,8 @@
 {
-    "project_id": "my-os",
-    "project_dir": "/home/user/work/my-os",
+    "project_id": "linux-stable",
+    "project_dir": "/home/loto/work/linux-stable",
     "http_host": "127.0.0.1",
-    "http_port": 8089,
+    "http_port": 8090,
     "storage": "sqlite",
     "exclude_dirs": [".git", "build", ".venv", "__pycache__", "node_modules", "dist"],
     "include_dirs": [],

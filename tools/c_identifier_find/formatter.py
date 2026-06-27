@@ -29,15 +29,12 @@ def format_results(data: list[dict], query: str) -> str:
     for r in data:
         kind = KIND_LABEL.get(r["kind"], r["kind"].upper())
         stype = TYPE_LABEL.get(r["symbol_type"], r["symbol_type"])
-        snippet = r["definition"][:80].replace("\n", "\\n")
-        if len(r["definition"]) > 80:
-            snippet += "..."
-
-        lines.append(
-            f"  [{kind}] {r['file_path']}:{r['line']}:{r['column']}  "
-            f"({stype})\n"
-            f"         {snippet}"
-        )
+        file_ref = f"{r['file_path']}:{r['line']}:{r['column']}"
+        header = f"  [{kind}] {file_ref}  ({stype})"
+        if r["kind"] == "definition":
+            lines.append(f"{header}\n\n```c\n{r['definition']}\n```")
+        else:
+            lines.append(f"{header}\n         {r['definition']}")
 
     return "\n\n".join(lines)
 
