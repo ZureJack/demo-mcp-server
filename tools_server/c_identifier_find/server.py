@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 from .storage import SymbolStorage, SymbolData
@@ -169,7 +169,7 @@ def run_server(config: dict) -> None:
     host = config.get("http_host", "127.0.0.1")
     port = config.get("http_port", 8089)
 
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = HTTPServer((host, port), Handler)
     print(f"[c_identifier_find] HTTP 服务已启动: http://{host}:{port}", flush=True)
     print(f"[c_identifier_find] 项目: {_PROJECT_DIR}", flush=True)
     print(f"[c_identifier_find] 存储: {storage_type} ({cache_dir})", flush=True)

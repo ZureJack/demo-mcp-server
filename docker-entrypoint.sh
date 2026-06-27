@@ -34,19 +34,59 @@ EOF
 
 log "配置已写入 $CIF_CONFIG"
 
-# --- 启动 c_identifier_find HTTP 服务（后台） ---
+# --- 同步扫描（先建立索引，不依赖 server 内部线程） ---
+python -c "
+import json, os, sys
+sys.path.insert(0, '/app')
+from tools_server.c_identifier_find.scanner import full_scan, _collect_files
+from tools_server.c_identifier_find.storage.sqlite import SqliteStorage
+from tools_server.c_identifier_find.storage import SymbolData
+import threading
+
+config = json.load(open('$CIF_CONFIG'))
+project_dir = config['project_dir']
+cache_dir = os.path.expanduser(f'~/.cache/c_identifier_find/{config[\"project_id\"]}')
+os.makedirs(cache_dir, exist_ok=True)
+db_path = os.path.join(cache_dir, 'db.sqlite3')
+
+if os.path.isfile(db_path):
+    storage = SqliteStorage(db_path)
+    stats = storage.stats()
+    if stats['symbol_count'] > 0:
+        print('[entrypoint] 索引已存在，跳过扫描')
+        storage.close()
+        sys.exit(0)
+    storage.close()
+
+print('[entrypoint] 开始全量扫描...')
+storage = SqliteStorage(db_path)
+files = _collect_files(project_dir, config)
+total = len(files)
+print(f'[entrypoint] 共发现 {total} 个文件')
+
+def _on_progress(scanned, total):
+    if scanned % 500 == 0 or scanned == total:
+        print(f'[entrypoint] 进度: {scanned}/{total}')
+
+cancel = threading.Event()
+full_scan(project_dir, config, storage, cancel, _on_progress)
+storage.close()
+print('[entrypoint] 扫描完成')
+" 2>&1 | while IFS= read -r line; do log "$line"; done
+
+# --- 启动 c_identifier_find HTTP 服务（后台，无扫描线程） ---
 python /app/c_identifier_find_server.py "$CIF_CONFIG" &
 CIF_PID=$!
 log "c_identifier_find 服务已启动 (PID: $CIF_PID)"
 
 # --- 等待 HTTP 就绪 ---
-for i in $(seq 1 30); do
+for i in $(seq 1 15); do
     if curl -sf "http://127.0.0.1:$CIF_PORT/status" >/dev/null 2>&1; then
         log "c_identifier_find 服务就绪"
         break
     fi
-    if [ $i -eq 30 ]; then
-        log "警告: c_identifier_find 服务未在预期内就绪，仍继续启动 MCP 服务"
+    if [ $i -eq 15 ]; then
+        log "警告: c_identifier_find 服务未就绪，仍继续"
     fi
     sleep 1
 done
