@@ -54,6 +54,7 @@ mcp dev server.py
 | `resources` | MCP Resources（greeting） | [README](tools/resources/README.md) |
 | `prompts` | MCP Prompts（summarize） | [README](tools/prompts/README.md) |
 | `install_deps` | 按需安装模块依赖 | [README](tools/install_deps/README.md) |
+| `c_identifier_find` | 查找 C 标识符定义与声明 | [README](tools/c_identifier_find/README.md) |
 
 ## 在 Cline 中接入
 

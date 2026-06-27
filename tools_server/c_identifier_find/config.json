@@ -1,0 +1,12 @@
+{
+    "project_id": "my-os",
+    "project_dir": "/home/user/work/my-os",
+    "http_host": "127.0.0.1",
+    "http_port": 8089,
+    "storage": "sqlite",
+    "exclude_dirs": [".git", "build", ".venv", "__pycache__", "node_modules", "dist"],
+    "include_dirs": [],
+    "include_extensions": [".c", ".h"],
+    "follow_symlinks": false,
+    "debounce_ms": 500
+}

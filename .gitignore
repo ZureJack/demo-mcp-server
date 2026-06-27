@@ -11,6 +11,11 @@ dist/
 venv/
 env/
 
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
 # Tooling
 .mypy_cache/
 .ruff_cache/
