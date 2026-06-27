@@ -69,7 +69,10 @@ class Handler(BaseHTTPRequestHandler):
             self._trigger_rebuild()
         elif self.path == "/shutdown":
             _json_response(self, {"ok": True, "data": "shutting down"})
-            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            try:
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+            except RuntimeError:
+                pass
         else:
             _json_response(self, {"ok": False, "error": "not found"}, 404)
 
@@ -91,13 +94,16 @@ class Handler(BaseHTTPRequestHandler):
         _SCAN_PROGRESS = {"scanned": 0, "total": 0, "status": "scanning"}
         _STORAGE.clear()
 
-        _SCAN_THREAD = threading.Thread(
-            target=full_scan,
-            args=(_PROJECT_DIR, _CONFIG, _STORAGE, _CANCEL_EVENT, _on_progress),
-            daemon=True,
-        )
-        _SCAN_THREAD.start()
-        _json_response(self, {"ok": True, "data": "rebuild started"})
+        try:
+            _SCAN_THREAD = threading.Thread(
+                target=full_scan,
+                args=(_PROJECT_DIR, _CONFIG, _STORAGE, _CANCEL_EVENT, _on_progress),
+                daemon=True,
+            )
+            _SCAN_THREAD.start()
+            _json_response(self, {"ok": True, "data": "rebuild started"})
+        except RuntimeError:
+            _json_response(self, {"ok": False, "error": "无法创建后台扫描线程，请手动重启容器"})
 
 
 def _symbol_to_dict(sym: SymbolData) -> dict:
@@ -156,15 +162,22 @@ def run_server(config: dict) -> None:
             _SCAN_PROGRESS["status"] = "ready"
             print(f"[c_identifier_find] 扫描完成", flush=True)
 
-        _SCAN_THREAD = threading.Thread(
-            target=_scan_and_finish,
-            daemon=True,
-        )
-        _SCAN_THREAD.start()
+        try:
+            _SCAN_THREAD = threading.Thread(
+                target=_scan_and_finish,
+                daemon=True,
+            )
+            _SCAN_THREAD.start()
+        except RuntimeError:
+            print("[c_identifier_find] 警告: 无法创建扫描线程，降级为前台同步扫描", flush=True)
+            _scan_and_finish()
         print(f"[c_identifier_find] 开始扫描 {len(all_files)} 个文件...", flush=True)
 
     _WATCHER = FileWatcher(_PROJECT_DIR, _CONFIG, _STORAGE, _SCAN_LOCK)
-    _WATCHER.start()
+    try:
+        _WATCHER.start()
+    except RuntimeError:
+        print("[c_identifier_find] 警告: 文件监控线程创建失败（跳过 watcher）", flush=True)
 
     host = config.get("http_host", "127.0.0.1")
     port = config.get("http_port", 8089)

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ulimit -u unlimited 2>/dev/null || true
+
 # 默认配置，可通过环境变量覆盖
 CIF_PROJECT_DIR="${CIF_PROJECT_DIR:-/project}"
 CIF_PORT="${CIF_PORT:-8090}"
